@@ -1,15 +1,23 @@
 # claude-injector
 
-Inject text into a running Claude Code session. A file watcher runs in the background via a Claude Code [stop hook](https://docs.anthropic.com/en/docs/claude-code/hooks). When you write to the session's watch file, the content is printed to Claude's terminal, effectively injecting it into the conversation.
+Inject text into a running Claude Code session from outside the UI.
+
+A [stop hook](https://docs.anthropic.com/en/docs/claude-code/hooks) checks after each Claude response whether a file watcher is running. If not, it asks Claude to start one as a background process. When you write to the session's watch file, the watcher picks up the content and delivers it to Claude as a background task completion — effectively injecting a message into the conversation.
 
 ## How it works
 
-1. A **stop hook** runs after every Claude response, ensuring a watcher process is alive for the current session.
-2. **watch.py** creates `/tmp/claude-injector/{session-id}`, then polls it for content.
-3. When the file is written to, it waits 1 second, reads the content, prints it to stdout, truncates the file, cleans up, and exits.
-4. The next time Claude responds, the stop hook starts a fresh watcher.
+1. A **stop hook** (`ensure-watcher.sh`) runs after every Claude response. It checks whether a watcher process holds a lock for the current session.
+2. If no watcher is running, the hook returns a `block` decision that asks Claude to start one as a background process.
+3. Claude runs **`watch.py`** in the background with the session ID. The watcher creates `/tmp/claude-injector/{session-id}` and polls it for content.
+4. When the file is written to, the watcher waits 1 second, reads the content, prints it to stdout (delivered as background task output), truncates the file, cleans up, and exits.
+5. On the next response, the stop hook starts a fresh watcher.
 
-Duplicate watchers for the same session are prevented via `fcntl.flock`.
+Duplicate watchers are prevented via `fcntl.flock`.
+
+## Limitations
+
+- Injection is delivered when Claude is **idle** (waiting for user input). If Claude is mid-turn (running tools, generating a response), the message is queued and delivered after the turn completes.
+- The watcher exits after each injection, so there's a brief gap before the stop hook starts a new one.
 
 ## Setup
 
@@ -20,10 +28,10 @@ Duplicate watchers for the same session are prevented via `fcntl.flock`.
 
 ### Install
 
-1. Clone this repo somewhere permanent:
+1. Clone this repo:
 
    ```bash
-   git clone <repo-url> ~/claude-injector
+   git clone https://github.com/jes5199/claude-injector.git ~/claude-injector
    ```
 
 2. Make the hook script executable (should already be, but just in case):
@@ -69,14 +77,4 @@ Write to it to inject text into that session:
 echo "hello from outside" > /tmp/claude-injector/<session-id>
 ```
 
-The watcher prints the content to the terminal and deletes the file.
-
-## Standalone usage
-
-You can also run the watcher directly:
-
-```bash
-uv run watch.py <session-id>
-```
-
-This creates `/tmp/claude-injector/<session-id>`, waits for content, prints it, and cleans up on exit.
+The watcher delivers the content to Claude as a background task completion.
