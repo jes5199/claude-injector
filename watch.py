@@ -1,21 +1,49 @@
 #!/usr/bin/env python3
-"""Watch an empty file; when written to, wait 1s, read, print, truncate, and exit."""
+"""Watch a session file; when written to, wait 1s, read, print, truncate, and exit."""
 
+import atexit
+import fcntl
+import os
 import sys
 import time
-import os
+
+WATCH_DIR = "/tmp/claude-injector"
 
 
 def main():
     if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} <file>", file=sys.stderr)
+        print(f"Usage: {sys.argv[0]} <session-id>", file=sys.stderr)
         sys.exit(1)
 
-    path = sys.argv[1]
+    session_id = sys.argv[1]
+    os.makedirs(WATCH_DIR, exist_ok=True)
 
-    if not os.path.exists(path):
-        print(f"Error: {path} does not exist", file=sys.stderr)
-        sys.exit(1)
+    path = os.path.join(WATCH_DIR, session_id)
+    lockpath = path + ".lock"
+
+    # Acquire exclusive lock (non-blocking) to prevent duplicate watchers
+    lockfile = open(lockpath, "w")
+    try:
+        fcntl.flock(lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        sys.exit(0)  # Another instance is already watching
+
+    # Create the watch file
+    open(path, "a").close()
+
+    def cleanup():
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
+        try:
+            fcntl.flock(lockfile, fcntl.LOCK_UN)
+            lockfile.close()
+            os.unlink(lockpath)
+        except (OSError, FileNotFoundError):
+            pass
+
+    atexit.register(cleanup)
 
     # Poll until the file becomes non-empty
     while os.path.getsize(path) == 0:
