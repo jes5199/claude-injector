@@ -13,26 +13,47 @@ Duplicate watchers for the same session are prevented via `fcntl.flock`.
 
 ## Setup
 
-Requires [uv](https://docs.astral.sh/uv/) and `jq`.
+### Prerequisites
 
-Add the stop hook to `~/.claude/settings.json` (or `.claude/settings.json` in a project):
+- [uv](https://docs.astral.sh/uv/)
+- `jq`
 
-```json
-{
-  "hooks": {
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "/path/to/claude-injector/ensure-watcher.sh"
-          }
-        ]
-      }
-    ]
-  }
-}
-```
+### Install
+
+1. Clone this repo somewhere permanent:
+
+   ```bash
+   git clone <repo-url> ~/claude-injector
+   ```
+
+2. Make the hook script executable (should already be, but just in case):
+
+   ```bash
+   chmod +x ~/claude-injector/ensure-watcher.sh
+   ```
+
+3. Add a `Stop` hook to your Claude Code settings. Edit `~/.claude/settings.json` and merge a `Stop` entry into the existing `hooks` object (create `hooks` if it doesn't exist):
+
+   ```json
+   {
+     "hooks": {
+       "Stop": [
+         {
+           "hooks": [
+             {
+               "type": "command",
+               "command": "/absolute/path/to/claude-injector/ensure-watcher.sh"
+             }
+           ]
+         }
+       ]
+     }
+   }
+   ```
+
+   **Important:** The `command` must be an absolute path. Update it to match where you cloned the repo.
+
+4. Restart Claude Code (or start a new session) for the hook to take effect.
 
 ## Usage
 
