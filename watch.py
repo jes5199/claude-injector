@@ -1,13 +1,21 @@
 #!/usr/bin/env python3
 """Watch a session file; when written to, wait 1s, read, print, truncate, and exit."""
 
-import atexit
-import fcntl
 import os
+import signal
 import sys
 import time
 
 WATCH_DIR = "/tmp/claude-injector"
+
+
+def is_pid_alive(pid):
+    """Check if a process with the given PID is still running."""
+    try:
+        os.kill(pid, 0)
+        return True
+    except (OSError, ProcessLookupError):
+        return False
 
 
 def main():
@@ -21,29 +29,38 @@ def main():
     path = os.path.join(WATCH_DIR, session_id)
     lockpath = path + ".lock"
 
-    # Acquire exclusive lock (non-blocking) to prevent duplicate watchers
-    lockfile = open(lockpath, "w")
-    try:
-        fcntl.flock(lockfile, fcntl.LOCK_EX | fcntl.LOCK_NB)
-    except BlockingIOError:
-        sys.exit(0)  # Another instance is already watching
+    # PID-based locking: check if an existing watcher is still alive
+    if os.path.exists(lockpath):
+        try:
+            with open(lockpath, "r") as f:
+                old_pid = int(f.read().strip())
+            if is_pid_alive(old_pid):
+                sys.exit(0)  # Another instance is still running
+        except (ValueError, FileNotFoundError):
+            pass  # Stale/corrupt lockfile — take over
+
+    # Write our PID to the lockfile
+    with open(lockpath, "w") as f:
+        f.write(str(os.getpid()))
 
     # Create the watch file
     open(path, "a").close()
 
-    def cleanup():
+    def cleanup(*args):
         try:
             os.unlink(path)
         except FileNotFoundError:
             pass
         try:
-            fcntl.flock(lockfile, fcntl.LOCK_UN)
-            lockfile.close()
             os.unlink(lockpath)
-        except (OSError, FileNotFoundError):
+        except FileNotFoundError:
             pass
+        if args:  # Called from signal handler
+            sys.exit(0)
 
-    atexit.register(cleanup)
+    # Register cleanup for both normal exit and signals
+    signal.signal(signal.SIGTERM, cleanup)
+    signal.signal(signal.SIGINT, cleanup)
 
     # Poll until the file becomes non-empty
     while os.path.getsize(path) == 0:
@@ -56,6 +73,7 @@ def main():
         content = f.read().strip()
 
     if not content:
+        cleanup()
         return  # Nothing to inject — exit silently
 
     sys.stdout.write(f"[session: {session_id}] {content}")
@@ -63,6 +81,8 @@ def main():
     # Truncate the file
     with open(path, "w") as f:
         pass
+
+    cleanup()
 
 
 if __name__ == "__main__":

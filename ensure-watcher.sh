@@ -17,13 +17,16 @@ mkdir -p "$WATCHDIR"
 
 REASON=""
 
-# Check if watcher needs starting
-(
-    flock -n 9 || exit 1
-    exit 0
-) 9>"$LOCKFILE"
+# PID-based check: is a watcher already running for this session?
+NEEDS_WATCHER=true
+if [ -f "$LOCKFILE" ]; then
+    OLD_PID=$(cat "$LOCKFILE" 2>/dev/null)
+    if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+        NEEDS_WATCHER=false
+    fi
+fi
 
-if [ $? -eq 0 ]; then
+if [ "$NEEDS_WATCHER" = "true" ]; then
     REASON="Please run the claude-injector watcher as a background process: uv run /home/jes/claude-injector/watch.py ${SESSION_ID}. When the watcher exits, read its output file to see the injected message."
 fi
 
