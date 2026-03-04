@@ -15,16 +15,32 @@ LOCKFILE="${WATCHDIR}/${SESSION_ID}.lock"
 
 mkdir -p "$WATCHDIR"
 
-# Try to grab the lock. If we succeed, no watcher holds it — ask Claude to start one.
-# If we fail, a watcher is already running.
+REASON=""
+
+# Check if watcher needs starting
 (
     flock -n 9 || exit 1
-    # We got the lock — no watcher is running
     exit 0
 ) 9>"$LOCKFILE"
 
 if [ $? -eq 0 ]; then
-    echo '{"decision":"block","reason":"Please run the claude-injector watcher as a background process: uv run /home/jes/claude-injector/watch.py '"$SESSION_ID"'"}'
+    REASON="Please run the claude-injector watcher as a background process: uv run /home/jes/claude-injector/watch.py ${SESSION_ID}. When the watcher exits, read its output file to see the injected message."
+fi
+
+# Check for pending IRC invite
+IRC_INVITE="/tmp/claude-chat/invites/${SESSION_ID}"
+if [ -f "$IRC_INVITE" ]; then
+    INVITE_MSG=$(cat "$IRC_INVITE")
+    rm -f "$IRC_INVITE"
+    if [ -n "$REASON" ]; then
+        REASON="${REASON}. Also: ${INVITE_MSG}"
+    else
+        REASON="${INVITE_MSG}"
+    fi
+fi
+
+if [ -n "$REASON" ]; then
+    echo "{\"decision\":\"block\",\"reason\":\"${REASON}\"}"
 fi
 
 exit 0

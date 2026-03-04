@@ -53,9 +53,12 @@ def main():
     time.sleep(1)
 
     with open(path, "r") as f:
-        content = f.read()
+        content = f.read().strip()
 
-    sys.stdout.write(content)
+    if not content:
+        return  # Nothing to inject — exit silently
+
+    sys.stdout.write(f"[session: {session_id}] {content}")
 
     # Truncate the file
     with open(path, "w") as f:
