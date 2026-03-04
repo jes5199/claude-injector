@@ -46,7 +46,8 @@ def main():
     # Create the watch file
     open(path, "a").close()
 
-    def cleanup(*args):
+    def cleanup_full(*args):
+        """Full cleanup: remove both files (used on signal/kill)."""
         try:
             os.unlink(path)
         except FileNotFoundError:
@@ -58,31 +59,29 @@ def main():
         if args:  # Called from signal handler
             sys.exit(0)
 
-    # Register cleanup for both normal exit and signals
-    signal.signal(signal.SIGTERM, cleanup)
-    signal.signal(signal.SIGINT, cleanup)
+    # Register full cleanup for signals (process killed externally)
+    signal.signal(signal.SIGTERM, cleanup_full)
+    signal.signal(signal.SIGINT, cleanup_full)
 
-    # Poll until the file becomes non-empty
-    while os.path.getsize(path) == 0:
+    # Poll until the file has actual content (not just non-zero size)
+    while True:
+        try:
+            if os.path.getsize(path) > 0:
+                with open(path, "r") as f:
+                    content = f.read().strip()
+                if content:
+                    break
+        except FileNotFoundError:
+            # Watchfile was deleted externally — recreate it
+            open(path, "a").close()
         time.sleep(0.1)
 
-    # Wait 1 second after detecting content
-    time.sleep(1)
-
-    with open(path, "r") as f:
-        content = f.read().strip()
-
-    if not content:
-        cleanup()
-        return  # Nothing to inject — exit silently
-
-    sys.stdout.write(f"[session: {session_id}] {content}")
-
-    # Truncate the file
+    # Truncate the watchfile but keep it (and the lockfile) so the relay
+    # can deliver future nudges before the next watcher starts
     with open(path, "w") as f:
         pass
 
-    cleanup()
+    sys.stdout.write(f"[session: {session_id}] {content}")
 
 
 if __name__ == "__main__":
