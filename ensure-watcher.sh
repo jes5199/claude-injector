@@ -27,7 +27,7 @@ if [ -f "$LOCKFILE" ]; then
 fi
 
 if [ "$NEEDS_WATCHER" = "true" ]; then
-    REASON="Please run the friendly-claude-message-alerts watcher as a background process: uv run /home/jes/friendly-claude-message-alerts/watch.py ${SESSION_ID}. When the watcher exits, read its output file to see the injected message."
+    REASON="Please run the friendly-claude-message-alerts watcher as a background process: uv run /home/jes/friendly-claude-message-alerts/watch.py ${SESSION_ID}. When the watcher exits, read its output file to see the alert message."
 fi
 
 # Check for pending IRC invite

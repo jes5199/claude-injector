@@ -1,8 +1,8 @@
 # friendly-claude-message-alerts
 
-Inject text into a running Claude Code session from outside the UI.
+Send alert messages into a running Claude Code session from outside the UI.
 
-A [stop hook](https://docs.anthropic.com/en/docs/claude-code/hooks) checks after each Claude response whether a file watcher is running. If not, it asks Claude to start one as a background process. When you write to the session's watch file, the watcher picks up the content and delivers it to Claude as a background task completion — effectively injecting a message into the conversation.
+A [stop hook](https://docs.anthropic.com/en/docs/claude-code/hooks) checks after each Claude response whether a file watcher is running. If not, it asks Claude to start one as a background process. When you write to the session's watch file, the watcher picks up the content and delivers it to Claude as a background task completion — nudging a message into the conversation.
 
 ## How it works
 
@@ -16,8 +16,8 @@ Duplicate watchers are prevented via `fcntl.flock`.
 
 ## Limitations
 
-- Injection is delivered when Claude is **idle** (waiting for user input). If Claude is mid-turn (running tools, generating a response), the message is queued and delivered after the turn completes.
-- The watcher exits after each injection, so there's a brief gap before the stop hook starts a new one.
+- Alerts are delivered when Claude is **idle** (waiting for user input). If Claude is mid-turn (running tools, generating a response), the message is queued and delivered after the turn completes.
+- The watcher exits after each alert, so there's a brief gap before the stop hook starts a new one.
 
 ## Setup
 
@@ -71,7 +71,7 @@ Find your session's watch file:
 ls /tmp/friendly-claude-message-alerts/
 ```
 
-Write to it to inject text into that session:
+Write to it to send an alert to that session:
 
 ```bash
 echo "hello from outside" > /tmp/friendly-claude-message-alerts/<session-id>
