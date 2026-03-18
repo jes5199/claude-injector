@@ -10,7 +10,7 @@ if [ "$STOP_HOOK_ACTIVE" = "true" ]; then
     exit 0
 fi
 
-WATCHDIR="/tmp/claude-injector"
+WATCHDIR="/tmp/friendly-claude-message-alerts"
 LOCKFILE="${WATCHDIR}/${SESSION_ID}.lock"
 
 mkdir -p "$WATCHDIR"
@@ -27,7 +27,7 @@ if [ -f "$LOCKFILE" ]; then
 fi
 
 if [ "$NEEDS_WATCHER" = "true" ]; then
-    REASON="Please run the claude-injector watcher as a background process: uv run /home/jes/claude-injector/watch.py ${SESSION_ID}. When the watcher exits, read its output file to see the injected message."
+    REASON="Please run the friendly-claude-message-alerts watcher as a background process: uv run /home/jes/friendly-claude-message-alerts/watch.py ${SESSION_ID}. When the watcher exits, read its output file to see the injected message."
 fi
 
 # Check for pending IRC invite

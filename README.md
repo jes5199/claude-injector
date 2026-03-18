@@ -1,4 +1,4 @@
-# claude-injector
+# friendly-claude-message-alerts
 
 Inject text into a running Claude Code session from outside the UI.
 
@@ -8,7 +8,7 @@ A [stop hook](https://docs.anthropic.com/en/docs/claude-code/hooks) checks after
 
 1. A **stop hook** (`ensure-watcher.sh`) runs after every Claude response. It checks whether a watcher process holds a lock for the current session.
 2. If no watcher is running, the hook returns a `block` decision that asks Claude to start one as a background process.
-3. Claude runs **`watch.py`** in the background with the session ID. The watcher creates `/tmp/claude-injector/{session-id}` and polls it for content.
+3. Claude runs **`watch.py`** in the background with the session ID. The watcher creates `/tmp/friendly-claude-message-alerts/{session-id}` and polls it for content.
 4. When the file is written to, the watcher waits 1 second, reads the content, prints it to stdout (delivered as background task output), truncates the file, cleans up, and exits.
 5. On the next response, the stop hook starts a fresh watcher.
 
@@ -31,13 +31,13 @@ Duplicate watchers are prevented via `fcntl.flock`.
 1. Clone this repo:
 
    ```bash
-   git clone https://github.com/jes5199/claude-injector.git ~/claude-injector
+   git clone https://github.com/jes5199/friendly-claude-message-alerts.git ~/friendly-claude-message-alerts
    ```
 
 2. Make the hook script executable (should already be, but just in case):
 
    ```bash
-   chmod +x ~/claude-injector/ensure-watcher.sh
+   chmod +x ~/friendly-claude-message-alerts/ensure-watcher.sh
    ```
 
 3. Add a `Stop` hook to your Claude Code settings. Edit `~/.claude/settings.json` and merge a `Stop` entry into the existing `hooks` object (create `hooks` if it doesn't exist):
@@ -50,7 +50,7 @@ Duplicate watchers are prevented via `fcntl.flock`.
            "hooks": [
              {
                "type": "command",
-               "command": "/absolute/path/to/claude-injector/ensure-watcher.sh"
+               "command": "/absolute/path/to/friendly-claude-message-alerts/ensure-watcher.sh"
              }
            ]
          }
@@ -68,13 +68,13 @@ Duplicate watchers are prevented via `fcntl.flock`.
 Find your session's watch file:
 
 ```bash
-ls /tmp/claude-injector/
+ls /tmp/friendly-claude-message-alerts/
 ```
 
 Write to it to inject text into that session:
 
 ```bash
-echo "hello from outside" > /tmp/claude-injector/<session-id>
+echo "hello from outside" > /tmp/friendly-claude-message-alerts/<session-id>
 ```
 
 The watcher delivers the content to Claude as a background task completion.

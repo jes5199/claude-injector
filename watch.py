@@ -6,7 +6,7 @@ import signal
 import sys
 import time
 
-WATCH_DIR = "/tmp/claude-injector"
+WATCH_DIR = "/tmp/friendly-claude-message-alerts"
 
 
 def is_pid_alive(pid):
